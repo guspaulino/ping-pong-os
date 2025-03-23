@@ -16,6 +16,24 @@ int queue_size (queue_t *queue){
 }
 
 void queue_print (char *name, queue_t *queue, void print_elem (void*) ){
+    int size = queue_size(queue);
+    printf("%s", name);
+
+    queue_t *aux = queue;
+    printf("[");
+    for (int i = 0; i < size; i++)
+    {
+        print_elem(aux);
+
+        if(i != size - 1)
+            printf(" ");
+
+        aux = aux->next;
+    }
+    
+    printf("]");
+    printf("\n");
+
     return;
 }
 
@@ -83,7 +101,7 @@ int queue_remove (queue_t **queue, queue_t *elem){
     prev->next = aux->next;
     next->prev = aux->prev;
 
-    if(*queue == aux)
+    if(*queue == aux) // if the first element is removed, change the first element pointer 
         *queue = aux->next;
     
     aux->next = NULL;
