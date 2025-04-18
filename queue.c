@@ -1,3 +1,8 @@
+/*
+Nome: Gustavo VinÃ­cius Paulino
+GRR: 20220067
+*/
+
 #include "queue.h"
 #include <stdio.h>
 
