@@ -24,6 +24,8 @@ typedef struct task_t
   ucontext_t context ;			// contexto armazenado da tarefa
   enum Status status ;			// pronta, rodando, suspensa, ...
   int vg_id; // ID da pilha da tarefa no Valgrind
+  int dynamic_prio;
+  int static_prio;
   // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 

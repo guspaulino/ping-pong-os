@@ -12,8 +12,56 @@ unsigned int id_counter = 1;
 queue_t *ready_tasks = NULL; 
 unsigned int user_tasks = 0;
 
+void print_elem(void *elem){
+    task_t *task = (task_t *) elem;
+    printf("Id: %d - DPrio: %d\n", task->id, task->dynamic_prio);
+}
+
+void task_setprio(task_t *task, int prio){
+    if(!task){
+        CurrentTask->static_prio = prio;
+        CurrentTask->dynamic_prio = prio;
+    }
+        
+    task->static_prio = prio;
+    task->dynamic_prio = prio;
+}
+
+int task_getprio(task_t *task){
+    if(!task)
+        return CurrentTask->static_prio;
+
+    return task->static_prio;
+}
+
 task_t *scheduler(){
-    return (task_t *) ready_tasks;
+    #ifdef DEBUG
+    queue_print("Tasks ready: ", (queue_t *) ready_tasks, *print_elem);
+    #endif
+    task_t *next_task = (task_t *) ready_tasks;
+    task_t *curr = (task_t *) ready_tasks->next;
+    while (curr != (task_t *) ready_tasks){
+        if(curr->dynamic_prio < next_task->dynamic_prio)
+            next_task = curr;
+
+        curr = curr->next;
+    }
+    
+    if(next_task != curr)
+        curr->dynamic_prio -= 1;
+
+    curr = curr->next;
+    while (curr != (task_t *) ready_tasks){
+        if(curr != next_task)
+            curr->dynamic_prio -= 1;
+        else
+            curr->dynamic_prio = curr->static_prio; // reseta a prio da task escolhida para a prio estática
+
+        curr = curr->next;            
+    }
+
+    
+    return (task_t *) next_task;
 }
 
 void dispatcher(){
@@ -81,7 +129,7 @@ int task_init(task_t *task, void (*start_routine)(void *), void *arg){
     makecontext(&task->context, (void (*)(void)) start_routine, 1, arg);
     task->id = id_counter;
     task->status = PRONTA;
-
+    task_setprio(task, 0);
     if(queue_append(&ready_tasks, (queue_t *) task) == 0)
         user_tasks++;
     else // erro ao inserir na fila de tasks
