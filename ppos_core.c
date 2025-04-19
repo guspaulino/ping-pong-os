@@ -41,26 +41,16 @@ task_t *scheduler(){
     task_t *next_task = (task_t *) ready_tasks;
     task_t *curr = (task_t *) ready_tasks->next;
     while (curr != (task_t *) ready_tasks){
-        if(curr->dynamic_prio < next_task->dynamic_prio)
+        if(curr->dynamic_prio < next_task->dynamic_prio){
+            next_task->dynamic_prio--;
             next_task = curr;
-
+        } else 
+            curr->dynamic_prio--;
+            
         curr = curr->next;
     }
-    
-    if(next_task != curr)
-        curr->dynamic_prio -= 1;
 
-    curr = curr->next;
-    while (curr != (task_t *) ready_tasks){
-        if(curr != next_task)
-            curr->dynamic_prio -= 1;
-        else
-            curr->dynamic_prio = curr->static_prio; // reseta a prio da task escolhida para a prio estática
-
-        curr = curr->next;            
-    }
-
-    
+    next_task->dynamic_prio = next_task->static_prio;
     return (task_t *) next_task;
 }
 
