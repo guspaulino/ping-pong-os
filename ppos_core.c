@@ -5,13 +5,14 @@
 #include <valgrind/valgrind.h>
 #define STACKSIZE 64*1024
 
-task_t MainTask;
+task_t MainTask; 
 task_t DispatcherTask;
 task_t *CurrentTask;
 unsigned int id_counter = 1;
 queue_t *ready_tasks = NULL; 
 unsigned int user_tasks = 0;
 
+// Função para printar a fila de prontas
 void print_elem(void *elem){
     task_t *task = (task_t *) elem;
     printf("Id: %d - DPrio: %d\n", task->id, task->dynamic_prio);
@@ -38,10 +39,11 @@ task_t *scheduler(){
     #ifdef DEBUG
     queue_print("Tasks ready: ", (queue_t *) ready_tasks, *print_elem);
     #endif
+    
     task_t *next_task = (task_t *) ready_tasks;
-    task_t *curr = (task_t *) ready_tasks->next;
+    task_t *curr = (task_t *) ready_tasks->next; // Variável para varrer a lista toda comparando a prioridade
     while (curr != (task_t *) ready_tasks){
-        if(curr->dynamic_prio < next_task->dynamic_prio){
+        if(curr->dynamic_prio <= next_task->dynamic_prio){
             next_task->dynamic_prio--;
             next_task = curr;
         } else 
@@ -50,7 +52,7 @@ task_t *scheduler(){
         curr = curr->next;
     }
 
-    next_task->dynamic_prio = next_task->static_prio;
+    next_task->dynamic_prio = next_task->static_prio; // Depois de escolher a tarefa, seta a prioridade dela de volta para a estática
     return (task_t *) next_task;
 }
 
@@ -70,7 +72,7 @@ void dispatcher(){
             {
             case PRONTA:
                 break;
-            case TERMINADA:
+            case TERMINADA: // Libera a memória alocada para a tarefa
                 free(next_task->context.uc_stack.ss_sp);
                 VALGRIND_STACK_DEREGISTER(next_task->vg_id);
                 break;
@@ -95,7 +97,7 @@ void ppos_init(){
     MainTask.status = EXECUTANDO;
     CurrentTask = &MainTask;
 
-    task_init(&DispatcherTask, *dispatcher, "Dispatcher");
+    task_init(&DispatcherTask, *dispatcher, "Dispatcher"); // Passa o controle para o dispatcher depois de iniciar o SO
 }
 
 int task_init(task_t *task, void (*start_routine)(void *), void *arg){
@@ -106,20 +108,21 @@ int task_init(task_t *task, void (*start_routine)(void *), void *arg){
     
     char *stack;
     stack = malloc(STACKSIZE);
-    if(stack){
+    if(stack){  // aloca stack para a tarefa
         task->context.uc_stack.ss_sp = stack;
         task->context.uc_stack.ss_size = STACKSIZE;
         task->context.uc_stack.ss_flags = 0;
         task->context.uc_link = 0;
 
-        task->vg_id = VALGRIND_STACK_REGISTER(stack, stack + STACKSIZE);
+        task->vg_id = VALGRIND_STACK_REGISTER(stack, stack + STACKSIZE); // necessário para valgrind encontrar essa stack
     } else 
         return -1;
 
     makecontext(&task->context, (void (*)(void)) start_routine, 1, arg);
     task->id = id_counter;
     task->status = PRONTA;
-    task_setprio(task, 0);
+    task_setprio(task, 0); // prioridade padrão é 0
+
     if(queue_append(&ready_tasks, (queue_t *) task) == 0)
         user_tasks++;
     else // erro ao inserir na fila de tasks
@@ -152,6 +155,7 @@ void task_exit(int exit_code){
     #ifdef DEBUG
     printf("Finalizando a task %d\n", CurrentTask->id);
     #endif
+
     if(CurrentTask != &DispatcherTask){
         CurrentTask->status = TERMINADA;
         task_switch(&DispatcherTask);

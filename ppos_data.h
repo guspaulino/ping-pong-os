@@ -9,7 +9,7 @@
 
 #include <ucontext.h>		// biblioteca POSIX de trocas de contexto
 
-enum Status {
+enum Status { // Status das tarefas executadas
     PRONTA,
     TERMINADA,
     SUSPENSA,
