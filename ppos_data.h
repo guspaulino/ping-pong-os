@@ -8,6 +8,7 @@
 #define __PPOS_DATA__
 
 #include <ucontext.h>		// biblioteca POSIX de trocas de contexto
+#include "queue.h"
 
 enum Status { // Status das tarefas executadas
     PRONTA,
@@ -26,6 +27,13 @@ typedef struct task_t
   int vg_id; // ID da pilha da tarefa no Valgrind
   int dynamic_prio;
   int static_prio;
+  int isSystemTask; // diz se é tarefa de sistema (1) ou usuário (0)
+  int quantum_counter; // contador de quantum da tarefa
+  unsigned int activations;
+  unsigned int task_start; // tick que a task foi iniciada
+  unsigned int processor_time;
+  int exit_code;
+  struct task_t *waiting_tasks;
   // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
