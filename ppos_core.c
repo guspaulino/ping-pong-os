@@ -16,6 +16,8 @@ struct sigaction action; // ação para o sinal SIGALARM (preempção de tarefa)
 struct itimerval timer; // timer para preempção de tarefa
 unsigned int ticks = 0;
 unsigned int switch_tick = 0; // tick em que ocorreu a troca para a tarefa atual para calcular tempo de processador
+task_t *sleeping_tasks = NULL;
+unsigned int user_tasks = 0;
 
 // Função para printar a fila de prontas
 void print_elem(void *elem){
@@ -65,6 +67,9 @@ task_t *scheduler(){
     queue_print("Tasks ready: ", (queue_t *) ready_tasks, *print_elem);
     #endif
     
+    if(!ready_tasks)
+        return NULL;
+
     task_t *next_task = (task_t *) ready_tasks;
     task_t *curr = (task_t *) ready_tasks->next; // Variável para varrer a lista toda comparando a prioridade
     while (curr != (task_t *) ready_tasks){
@@ -81,12 +86,27 @@ task_t *scheduler(){
     return (task_t *) next_task;
 }
 
+void awake_tasks(){
+    task_t *curr = sleeping_tasks;
+    task_t *next;
+    int n = queue_size((queue_t *) sleeping_tasks);
+
+    for(int i = 0; i < n; i++){
+        next = curr->next;
+        if(systime() >= curr->awake_time)
+            task_awake(curr, &sleeping_tasks);
+
+        curr = next;
+    }
+}
+
 void dispatcher(){
     queue_remove(&ready_tasks, (queue_t *) &DispatcherTask);
 
     
-    while(queue_size(ready_tasks)){
-        
+    while(user_tasks){
+        awake_tasks();
+
         task_t *next_task = scheduler();
         if(next_task){
             queue_remove(&ready_tasks, (queue_t *) next_task);
@@ -102,7 +122,7 @@ void dispatcher(){
             case TERMINADA: // Libera a memória alocada para a tarefa
                 free(next_task->context.uc_stack.ss_sp);
                 VALGRIND_STACK_DEREGISTER(next_task->vg_id);
-
+                user_tasks--;
                 break;
             case SUSPENSA:
                 break;
@@ -183,8 +203,11 @@ int task_init(task_t *task, void (*start_routine)(void *), void *arg){
     }
     task_setprio(task, 0); // prioridade padrão é 0
 
-    if(task != &DispatcherTask)
+    if(task != &DispatcherTask){
         task->isSystemTask = 0;
+        user_tasks++;
+    }
+        
     
 
     task->task_start = systime();
@@ -223,15 +246,11 @@ void task_exit(int exit_code){
     print_exit();
     if(CurrentTask != &DispatcherTask){
         CurrentTask->exit_code = exit_code;
-        task_t *head = CurrentTask->waiting_tasks;
         
-        if(head){
-            task_t *task = head;
-            do {
-                task_t *next_task = task->next;
-                task_awake(task, &CurrentTask->waiting_tasks);
-                task = next_task;
-            } while (task != head);
+        task_t *queue_head = CurrentTask->waiting_tasks;
+        while(queue_head){
+            task_awake(queue_head, &CurrentTask->waiting_tasks);
+            queue_head = CurrentTask->waiting_tasks;
         }
         
         CurrentTask->status = TERMINADA;
@@ -277,8 +296,10 @@ int task_wait(task_t *task){
 
     task_suspend(&task->waiting_tasks);
     return task->exit_code;
-    // task_suspend -> salvar contexto atual da tarefa em execução
-    // quando a *task terminar, salvar numa variável dela o exit_code
-    // quando a "tarefa atual" acorddar, restaurar o contexto pra cá e retornar o exit da *task 
     
+}
+
+void task_sleep(int t){
+    CurrentTask->awake_time = systime() + t;
+    task_suspend(&sleeping_tasks);
 }

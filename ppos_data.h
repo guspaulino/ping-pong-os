@@ -34,6 +34,7 @@ typedef struct task_t
   unsigned int processor_time;
   int exit_code;
   struct task_t *waiting_tasks;
+  unsigned int awake_time;
   // ... (outros campos serão adicionados mais tarde)
 } task_t ;
 
